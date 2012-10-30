@@ -106,16 +106,13 @@ public class EchoClient
             }
           }
           total += (long) received.getLength();
-         System.out.println(total + " filesize: " + Long.parseLong(pack));
-        if (((received.getLength() / totalLeft)) >= 1)
-        { 
-          System.out.println(totalLeft + " left gotten: " + received.getLength());
-          fos.write(received.getData(), 0, (int) totalLeft);
-          
-        }
-        else
-          fos.write(received.getData(), 0, received.getLength());
-        totalLeft -= received.getLength();
+          if (received.getLength() >= totalLeft )
+          { 
+            fos.write(received.getData(), 0, (int) totalLeft);
+          }
+          else
+            fos.write(received.getData(), 0, received.getLength());
+          totalLeft -= received.getLength();
         }
     }
   }

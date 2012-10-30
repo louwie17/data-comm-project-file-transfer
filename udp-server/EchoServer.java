@@ -80,10 +80,11 @@ public class EchoServer {
     while ((size = fin.read(buffer)) > 0)
     {
       total += size;
-      System.out.println(total);
       filePack = new DatagramPacket(buffer, buffer.length,
           packet.getAddress(), packet.getPort());
       socket.send(filePack);
+      try { Thread.sleep(0,3); }
+      catch (InterruptedException e) {}
     }
     System.out.println("Finished transfer");
     String done = "END_FILE";
