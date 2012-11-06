@@ -2,7 +2,7 @@ import java.io.*;
 import java.net.*;
 import java.util.*;
 
-public class EchoClient
+public class Client
 {
     private static final int BUFFER = 1024;
     private static final int PORT = 4444;
@@ -95,16 +95,25 @@ public class EchoClient
                             received.getLength());
                         if (cmd.equals("END_FILE") || total >= fileSize)
                         {
-                            System.out.println("recieved file");
+                            System.out.println("\n recieved file");
                             break;
                         }
                     }
-                    total += (long) received.getLength();
                     if (received.getLength() >= totalLeft )
+                    {
                         fos.write(received.getData(), 0, (int) totalLeft);
+                        total += (long) totalLeft;
+                    }
                     else
+                    {
                         fos.write(received.getData(), 0, received.getLength());
+                        total += (long) received.getLength();
+                    }
                     totalLeft -= received.getLength();
+                    double percentage = ((double) total / (double) fileSize)
+                        * 100;
+                    System.out.print((int) percentage +"%" +"\r");
+ 
                 }
                 fos.close();
             }

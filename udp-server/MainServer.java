@@ -3,7 +3,7 @@ import java.net.*;
 import java.nio.*;
 import java.util.*;
 
-public class EchoServer
+public class MainServer
 {
     public static final int PORT = 4444;
     public static final int BUFFER = 1024;
