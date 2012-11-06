@@ -103,6 +103,7 @@ public class EchoServer
                 }
             }
             System.out.println("Finished transfer");
+            fin.close();
             String done = "END_FILE";
             filePack = new DatagramPacket(done.getBytes(),
                 done.getBytes().length,packet.getAddress(),

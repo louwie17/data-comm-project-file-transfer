@@ -97,8 +97,7 @@ public class EchoClient
                             received.getLength());
                         if (cmd.equals("END_FILE") || total >= fileSize)
                         {
-                            System.out.println("received file:" +
-                                received.getLength());
+                            System.out.println("recieved file");
                             break;
                         }
                     }
@@ -109,6 +108,7 @@ public class EchoClient
                         fos.write(received.getData(), 0, received.getLength());
                     totalLeft -= received.getLength();
                 }
+                fos.close();
             }
         }
         catch (IOException e)
