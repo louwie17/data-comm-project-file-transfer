@@ -70,7 +70,6 @@ public class EchoClient
 
                 socket.receive(received);
                 pack = new String(received.getData(),0,received.getLength());
-                System.out.println(pack);
                 if (pack.startsWith("Error"))
                     continue;
                 String[] splitName = filename.split("/");
@@ -92,7 +91,6 @@ public class EchoClient
                     socket.receive(received);
                     if (total >= fileSize || received.getLength() <= 9)
                     {
-                        System.out.println(total >= fileSize);
                         cmd = new String(received.getData(), 0,
                             received.getLength());
                         if (cmd.equals("END_FILE") || total >= fileSize)
