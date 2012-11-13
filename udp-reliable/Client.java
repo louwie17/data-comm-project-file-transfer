@@ -22,6 +22,8 @@ public class Client
             while (true)
             {
                 System.out.print("Server IP: ");
+                if (!scan.hasNextLine())
+                    break;
                 ip = scan.nextLine();
                 if (ip.equals("quit"))
                     System.exit(0);
@@ -86,29 +88,48 @@ public class Client
                 final FileOutputStream fos = new FileOutputStream(newFile);
                 final long receivedLength = received.getLength();
                 
-                new TransferProtocolClient(socket, 
-                        (long) Math.ceil(fileSize *1.0 / 1011), 
+                System.out.println("Expected file size: " +
+                    fileSize);
+                
+                new TransferProtocolClient(socket, InetAddress.getByName(ip),
+                        PORT,
+                        (long) Math.ceil(fileSize * 1.0 / Chunk.DATA_BYTES), 
                         new IChunkHandler()
                         {
-                            private long total = 0;
-                            private long totalLeft = fileSize;
+                            private long have = 0;
+                            private long total = fileSize;
                             
                             public void receiveData(Chunk data)
                             {
                                 try
                                 {
-                                    if (receivedLength >= totalLeft )
+                                    //System.out.println(data);
+                                    long need = total - have;
+                                    if (need < 0)
+                                    {
+                                        System.out.println("Shouldn't " +
+                                            "be getting more bytes.");
+                                        System.exit(1);
+                                    }
+                                    if (need < Chunk.DATA_BYTES)
                                     {
                                         fos.write(data.getData(), 0, 
-                                            (int) totalLeft);
-                                        total += (long) totalLeft;
+                                            (int) need);
+                                        /*System.out.println("I Writing " +
+                                            need + " bytes.");*/
                                     }
                                     else
                                     {
                                         fos.write(data.getData(), 0, 
                                             data.getData().length);
-                                        total += receivedLength;
+                                        /*System.out.println("E Writing " +
+                                            data.getData().length +
+                                            " bytes.");*/
                                     }
+                                    have += data.getData().length;
+                                    System.out.print(
+                                        (long) (have * 100. / total) + 
+                                        "%" +"\r");
                                 }
                                 catch (IOException e)
                                 {
@@ -117,11 +138,11 @@ public class Client
                                     System.exit(1);
                                 }
 
-                                totalLeft -= receivedLength;
+/*                                totalLeft -= receivedLength;
                                 double percentage = ((double) total / 
                                     (double) fileSize) * 100;
                                 System.out.print((int) percentage +
-                                        "%" +"\r");
+                                        "%" +"\r");*/
  
                             }
 

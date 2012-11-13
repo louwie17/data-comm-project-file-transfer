@@ -4,29 +4,36 @@ import java.util.zip.CRC32;
 
 public class Chunk
 {
-    // First 4 bytes is sequence number last 9 bytes are the checksum/CRC
-    // the rest is the actual data
+    /* Packet:
+           4 bytes for sequence number
+        1011 bytes of data
+           8 bytes of checksum
+        ----------
+        1024 bytes total
+     */
+    public static final int SEQUENCE_NUMBER_BYTES = 4;
+    public static final int DATA_BYTES = 1011;
+    public static final int CRC_BYTES = 8;
+    public static final int TOTAL_BYTES = 1024;
+    
     private byte[] data;
 
     // this one is server side
     public Chunk(byte[] bytes, int num)
     {
-        if (bytes.length == 1011)
-        {
-            ByteBuffer buffer = ByteBuffer.allocate(1024);
-            buffer.putInt(num);
-            buffer.put(bytes);
+        if (bytes.length != DATA_BYTES)
+            throw new IllegalArgumentException("Invalid number of data " + 
+                " bytes.  Expected " + DATA_BYTES + ", but received " + 
+                bytes.length);
+        ByteBuffer buffer = ByteBuffer.allocate(TOTAL_BYTES);
+        buffer.putInt(num);
+        buffer.put(bytes);
 
-            byte[] sum = buffer.array();
-            Checksum crc = new CRC32();
-            crc.update(sum, 0, 1015);
-            buffer.putLong(crc.getValue());
-
-            data = buffer.array();
-        }
-        else
-            System.out.println("wrong size");
-        //creates the data byte array with sequence number and checksum
+        byte[] sum = buffer.array();
+        Checksum crc = new CRC32();
+        crc.update(sum, 0, SEQUENCE_NUMBER_BYTES + DATA_BYTES);
+        buffer.putLong(crc.getValue());
+        data = buffer.array();
     }
 
     // this one is client side
@@ -44,21 +51,22 @@ public class Chunk
     // Check the CRC on the client side
     public boolean checkCRC()
     {
-        ByteBuffer bb = ByteBuffer.allocate(1024);
+        ByteBuffer bb = ByteBuffer.allocate(TOTAL_BYTES);
         bb.put(data);
         
         Checksum crc = new CRC32();
-        crc.update(data, 0, 1015);
+        crc.update(data, 0, SEQUENCE_NUMBER_BYTES + DATA_BYTES);
 
-        System.out.println(bb.getLong(1015));
-        System.out.println(crc.getValue());
-        return bb.getLong(1015) == crc.getValue();
+//        System.out.println(bb.getLong(SEQUENCE_NUMBER_BYTES + DATA_BYTES));
+//        System.out.println(crc.getValue());
+        return crc.getValue() == bb.getLong(SEQUENCE_NUMBER_BYTES +
+            DATA_BYTES);
     }
 
     // client side
     public int getSequenceNumber()
     {
-        ByteBuffer bb = ByteBuffer.allocate(1024);
+        ByteBuffer bb = ByteBuffer.allocate(TOTAL_BYTES);
         bb.put(data);
         return bb.getInt(0);
     }
@@ -66,8 +74,28 @@ public class Chunk
     // for the client side
     public byte[] getData()
     {
-        ByteBuffer bb = ByteBuffer.allocate(1015);
-        bb.get(data, 1, 1016);
+        ByteBuffer bb = ByteBuffer.allocate(DATA_BYTES);
+        bb.put(data, SEQUENCE_NUMBER_BYTES, DATA_BYTES);
         return bb.array();    
     }
+    
+    /*public String toString()
+    {
+        return "[Chunk (Seq=" + getSequenceNumber() + ")" + " " +
+            dataAsString(getData());
+    }*/
+    
+    // temp public
+    public String dataAsString(byte[] bytes)
+    {
+        String ret = "";
+        ByteBuffer bb = ByteBuffer.allocate(bytes.length);
+        bb.put(bytes);
+        for (int i = 0; i < bytes.length; i++)
+            ret += bb.get(i);
+        return ret;
+    }
 }
+
+
+

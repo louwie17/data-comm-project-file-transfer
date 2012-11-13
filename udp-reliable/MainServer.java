@@ -7,6 +7,7 @@ public class MainServer
 {
     public static final int PORT = 4444;
     public static final int BUFFER = 1024;
+    private static final int MAX_SEQUENCE = 255;
 
     public static void main(String args[] )
     {
@@ -55,7 +56,7 @@ public class MainServer
             socket.receive(packet);
             request = new String(packet.getData(), 0, packet.getLength());
             System.out.println("Filename: " + request);
-            File file = new File(request);
+            final File file = new File(request);
             String replyStr = "";
             if (!file.exists())
                 replyStr = "Error: file doesn't exist.";
@@ -77,38 +78,48 @@ public class MainServer
                 System.out.println("File name invalid!!");
                 return;
             }
-            FileInputStream fin = new FileInputStream(file);
+            final FileInputStream fin = new FileInputStream(file);
             DatagramPacket filePack;
 
-            int size = 0;
-            byte[] buffer = new byte[BUFFER];
-            ByteBuffer bb = ByteBuffer.allocate(4);
-            bb.order(ByteOrder.BIG_ENDIAN);
-
             System.out.println("Start transfer..");
-            int total = 0;    
-            while ((size = fin.read(buffer)) > 0)
-            {
-                total += size;
-                filePack = new DatagramPacket(buffer, buffer.length,
-                    packet.getAddress(), packet.getPort());
-                socket.send(filePack);
-                try
-                {
-                    Thread.sleep(0, 3);
-                }
-                catch (InterruptedException e)
-                {
-                    e.printStackTrace();
-                }
-            }
+            new TransferProtocolServer(socket, packet.getAddress(),
+                packet.getPort(),
+                (long) Math.ceil(file.length() * 1.0 / Chunk.DATA_BYTES),
+                new IChunkSupplier(){
+                    private boolean done = false;
+                    private long sent = 0;
+                    private long total = 0;
+                    
+                    public Chunk nextChunk()
+                    {
+                        if (done)
+                            return null;
+                        int size;
+                        byte[] buffer = new byte[Chunk.DATA_BYTES];
+                        try
+                        {
+                            if ((size = fin.read(buffer)) > 0)
+                            {
+                                total += size;
+                                if (total >= file.length())
+                                    done = true;
+                                sent++;
+                                return new Chunk(buffer,
+                                    (int) (sent - 1) % MAX_SEQUENCE);
+                            }
+                        }
+                        catch (IOException e)
+                        {
+                            System.out.println("Error reading from file.");
+                            System.exit(1);
+                        }
+                        // shouldn't get here
+                        done = true;
+                        return null;
+                    }
+                });
             System.out.println("Finished transfer");
             fin.close();
-            String done = "END_FILE";
-            filePack = new DatagramPacket(done.getBytes(),
-                done.getBytes().length,packet.getAddress(),
-                packet.getPort());
-            socket.send(filePack);
             return; 
         }
         catch (IOException e)

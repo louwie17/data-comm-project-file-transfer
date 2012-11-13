@@ -1,9 +1,12 @@
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
+import java.net.InetAddress;
 import java.nio.ByteBuffer;
 import java.util.Map;
 import java.util.HashMap;
+import java.util.Timer;
+import java.util.TimerTask;
 
 public class TransferProtocolServer
 {
@@ -11,6 +14,8 @@ public class TransferProtocolServer
     private static final int TIMEOUT_MS = 300;
 
     private DatagramSocket socket;
+    private InetAddress address;
+    private int port;
     private long numPackets;
     private IChunkSupplier supplier;
     
@@ -22,22 +27,32 @@ public class TransferProtocolServer
      * Creates a new protocol client to handle the transfer of chunkCount
      * number of packets.
      * @param aSocket the socket to receive from
+     * @param aAddress the address of the client to send data to
+     * @param aPort the port of the client to send data to
      * @param chunkCount the number of Chunk objects to receive
      * @param aSupplier the chunk supplier from which data will be requested
-     * @throws IllegalArgumentException if aSocket or aSupplier are null
-     * or if chunkCount < 0.
+     * @throws IllegalArgumentException if aSocket, aAddress or aSupplier are
+     * null or if chunkCount < 0 or if port < 0 || > 65536
      */
-    public TransferProtocolServer(DatagramSocket aSocket, long chunkCount,
-                                  IChunkSupplier aSupplier)
+    public TransferProtocolServer(DatagramSocket aSocket,
+                                  InetAddress aAddress, int aPort,
+                                  long chunkCount, IChunkSupplier aSupplier)
     {
         if (aSocket == null)
             throw new IllegalArgumentException("Created with null socket.");
+        if (aAddress == null)
+            throw new IllegalArgumentException("Created with null address.");
+        if (aPort < 0 || aPort > 65536)
+            throw new IllegalArgumentException("Created with port outside " +
+                "valid range (" + aPort + ")");
         if (aSupplier == null)
             throw new IllegalArgumentException("Created with null supplier.");
         if (chunkCount < 0)
             throw new IllegalArgumentException("Created with chunks < 0 (" +
                 chunkCount + ")");
         socket = aSocket;
+        address = aAddress;
+        port = aPort;
         numPackets = chunkCount;
         supplier = aSupplier;
 
@@ -52,15 +67,17 @@ public class TransferProtocolServer
     private void fillSent()
     {
         Chunk next;
-        while (windowBase < canSend && sentNeedACK.size() < WINDOW_SIZE &&
+        while (!sentNeedACK.containsValue(windowBase) &&
+                windowBase < canSend && sentNeedACK.size() < WINDOW_SIZE &&
                 (next = supplier.nextChunk()) != null)
         {
-            fireData(next);
+            fireData(next, false);
         }
     }
     
     private void receiveACKS()
     {
+        System.out.println("Waiting for acks...");
         while (sentNeedACK.size() > 0)
         {
             DatagramPacket ack = new DatagramPacket(new byte[6], 6);
@@ -76,6 +93,7 @@ public class TransferProtocolServer
             ByteBuffer bb = ByteBuffer.allocate(6);
             bb.put(ack.getData());
             int sequence = bb.getInt(0);
+            System.out.println("Received ACK: " + sequence);
             Chunk m = null;
             for (Chunk c : sentNeedACK.keySet())
                 if (c.getSequenceNumber() == sequence)
@@ -84,24 +102,41 @@ public class TransferProtocolServer
             {
                 if (sentNeedACK.get(m) == windowBase)
                 {
+                    System.out.println("ACK was lowest.  Incrementing" +
+                        "window.  (base: " + windowBase + " & canSend: " +
+                        canSend + ")");
+                    sentNeedACK.remove(m);
                     windowBase++;
                     canSend++;
                     fillSent();
                 }
-                sentNeedACK.remove(m);
+                else
+                    sentNeedACK.remove(m);
             }
         }
+        System.out.println("Out of ACK waiting loop.");
     }
     
-    private boolean fireData(Chunk chunk)
+    private boolean fireData(Chunk chunk, boolean isResend)
     {
         DatagramPacket packet = new DatagramPacket(chunk.getPacket(),
-            chunk.getPacket().length);
-        sentNeedACK.put(chunk, windowBase + sentNeedACK.size());
+            chunk.getPacket().length, address, port);
+        if (!isResend)
+            sentNeedACK.put(chunk, windowBase + sentNeedACK.size());
+        System.out.println("FireData: " + sentNeedACK.get(chunk) +
+            " (Seq#: " + chunk.getSequenceNumber() + ")");
         try
         {
             socket.send(packet);
-            // add timer
+            final Chunk sentChunk = chunk;
+            Timer timer = new Timer();
+            timer.schedule(new TimerTask(){
+                public void run()
+                {
+                    if (sentNeedACK.containsKey(sentChunk))
+                        fireData(sentChunk, true);
+                }
+            }, TIMEOUT_MS);
             return true;
         }
         catch (IOException e)
