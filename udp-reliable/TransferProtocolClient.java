@@ -6,8 +6,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class TransferProtocolClient
-{    
+{
     private static final int WINDOW_SIZE = 50;
+    private static final int MAX_SEQUENCE = 255;
 
     private DatagramSocket socket;
     private long numPackets;
@@ -36,6 +37,7 @@ public class TransferProtocolClient
         socket = aSocket;
         numPackets = chunkCount;
         handler = aListener;
+        listen();
     }
     
     private void listen()
@@ -59,19 +61,23 @@ public class TransferProtocolClient
             Chunk c = new Chunk(packet.getData());
             buffer.add(c);
             
-            int lowerBound = (int) received % WINDOW_SIZE;
-            int upperBound = (lowerBound + WINDOW_SIZE) % WINDOW_SIZE;
+            int lowerBound = (int) received % MAX_SEQUENCE;
+            int upperBound = (lowerBound + WINDOW_SIZE) % MAX_SEQUENCE;
+            
+            System.out.println("Lower bound: " + lowerBound + "  Upper: " +
+                upperBound);
             
             if (c.getSequenceNumber() < lowerBound)
             {
+                fireACK(c.getSequenceNumber());
                 // send ACK();
-                System.out.println("ACK");
+                System.out.println("ACK: " + c.getSequenceNumber());
                 continue;
             }
             else if (c.getSequenceNumber() > upperBound)
             {
                 // ignore
-                System.out.println("Ignore");
+                System.out.println("Ignore: " + c.getSequenceNumber());
                 continue;
             }
             
@@ -80,8 +86,10 @@ public class TransferProtocolClient
             {
                 handler.receiveData(buffer.remove(index));
                 received++;
+                lowerBound = (int) received % MAX_SEQUENCE;
             }
         }
+        handler.finish();
     }
     
     private int bufferContainsChunk(List<Chunk> buffer, int number)
@@ -110,10 +118,7 @@ public class TransferProtocolClient
         {
             return false;
         }
-    }
-    
-    
-    
+    }   
 }
 
 

@@ -82,31 +82,42 @@ public class Client
                 }
 
                 newFile.createNewFile();
-                Long fileSize = Long.parseLong(pack);
+                final Long fileSize = Long.parseLong(pack);
                 final FileOutputStream fos = new FileOutputStream(newFile);
-                long total = 0;
-                long totalLeft = fileSize;
+                final long receivedLength = received.getLength();
                 
                 new TransferProtocolClient(socket, 
-                        Math.ceil(fileSize *1.0 / 1011), 
+                        (long) Math.ceil(fileSize *1.0 / 1011), 
                         new IChunkHandler()
                         {
+                            private long total = 0;
+                            private long totalLeft = fileSize;
+                            
                             public void receiveData(Chunk data)
                             {
-                                if (received.getLength() >= totalLeft )
+                                try
                                 {
-                                    fos.write(data.getData(), 0, 
-                                        (int) totalLeft);
-                                    total += (long) totalLeft;
+                                    if (receivedLength >= totalLeft )
+                                    {
+                                        fos.write(data.getData(), 0, 
+                                            (int) totalLeft);
+                                        total += (long) totalLeft;
+                                    }
+                                    else
+                                    {
+                                        fos.write(data.getData(), 0, 
+                                            data.getData().length);
+                                        total += receivedLength;
+                                    }
                                 }
-                                else
+                                catch (IOException e)
                                 {
-                                    fos.write(data.getData(), 0, 
-                                        data.getData().getLength());
-                                    total += (long) received.getLength();
+                                    System.out.println("IOException while " +
+                                        "writing to file.");
+                                    System.exit(1);
                                 }
 
-                                totalLeft -= received.getLength();
+                                totalLeft -= receivedLength;
                                 double percentage = ((double) total / 
                                     (double) fileSize) * 100;
                                 System.out.print((int) percentage +
@@ -116,10 +127,18 @@ public class Client
 
                             public void finish()
                             {
-                                fos.close();
+                                try
+                                {
+                                    fos.close();
+                                }
+                                catch (IOException e)
+                                {
+                                    System.out.println("IOException while " +
+                                        "closing file.");
+                                    System.exit(1);
+                                }
                             }
-                        }); 
-        
+                        });
             }
         }
         catch (IOException e)
