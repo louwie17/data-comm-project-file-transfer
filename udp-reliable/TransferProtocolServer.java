@@ -13,7 +13,7 @@ import java.util.TimerTask;
  */
 public class TransferProtocolServer
 {
-    private static final int WINDOW_SIZE = 50;
+    private static final int WINDOW_SIZE = 127;
     private static final int TIMEOUT_MS = 300;
 
     private DatagramSocket socket;

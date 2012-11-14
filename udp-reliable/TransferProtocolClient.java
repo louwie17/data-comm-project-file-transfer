@@ -12,7 +12,7 @@ import java.util.List;
  */
 public class TransferProtocolClient
 {
-    private static final int WINDOW_SIZE = 50;
+    private static final int WINDOW_SIZE = 127;
     private static final int MAX_SEQUENCE = 255;
 
     private DatagramSocket socket;
@@ -189,4 +189,3 @@ public class TransferProtocolClient
         // System.out.println(message);
     }
 }
-

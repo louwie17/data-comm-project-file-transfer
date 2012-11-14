@@ -10,9 +10,9 @@ import java.util.zip.CRC32;
 public class Chunk
 {
     public static final int SEQUENCE_NUMBER_BYTES = 4;
-    public static final int DATA_BYTES = 8192;  //1011;
+    public static final int DATA_BYTES = 8180;
     public static final int CRC_BYTES = 8;
-    public static final int TOTAL_BYTES = 8204;
+    public static final int TOTAL_BYTES = 8192;
 
     private byte[] data;
 
