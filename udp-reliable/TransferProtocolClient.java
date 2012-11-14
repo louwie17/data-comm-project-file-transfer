@@ -7,6 +7,9 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+/**
+ * The client side implementation of the reliable transfer protocol.
+ */
 public class TransferProtocolClient
 {
     private static final int WINDOW_SIZE = 50;
@@ -17,7 +20,7 @@ public class TransferProtocolClient
     private int port;
     private long numPackets;
     private IChunkHandler handler;
-    
+
     /**
      * Creates a new protocol client to handle the transfer of chunkCount
      * number of packets.
@@ -31,8 +34,8 @@ public class TransferProtocolClient
      * null or if chunkCount < 0 or if port < 0 || > 65536
      */
     public TransferProtocolClient(DatagramSocket aSocket,
-                                  InetAddress aAddress, int aPort,
-                                  long chunkCount, IChunkHandler aListener)
+        InetAddress aAddress, int aPort,
+        long chunkCount, IChunkHandler aListener)
     {
         if (aSocket == null)
             throw new IllegalArgumentException("Created with null socket.");
@@ -53,7 +56,11 @@ public class TransferProtocolClient
         handler = aListener;
         listen();
     }
-    
+
+    /**
+     * Waits for packets and ACKs them if they aren't corrupt.  When the buffer
+     * has the correct packets, it will pass them up the chain.
+     */
     private void listen()
     {
         DatagramPacket packet = new DatagramPacket(
@@ -61,7 +68,7 @@ public class TransferProtocolClient
         long received = 0;
         int index;
         List<Chunk> buffer = new ArrayList<Chunk>();
-        
+
         while (received < numPackets)
         {
             try
@@ -70,22 +77,21 @@ public class TransferProtocolClient
             }
             catch (IOException e)
             {
-                System.out.println("Error listening.");
+                report("Error listening.");
                 return;
             }
             Chunk c = new Chunk(Arrays.copyOf(packet.getData(),
-                packet.getData().length));
-            
+                    packet.getData().length));
+
             int lowerBound = (int) received % MAX_SEQUENCE;
             int upperBound = (lowerBound + WINDOW_SIZE) % MAX_SEQUENCE;
             int seq = c.getSequenceNumber();
-            
-            System.out.println("Lower bound: " + lowerBound + "  Upper: " +
-                upperBound);
-                
+
+            report("Lower bound: " + lowerBound + "  Upper: " + upperBound);
+
             if (!c.checkCRC())
             {
-                System.out.println("CRC failed.  Ignoring packet.");
+                report("CRC failed.  Ignoring packet.");
                 continue;
             }
             if (lowerBound < upperBound &&
@@ -100,22 +106,22 @@ public class TransferProtocolClient
                 fireACK(seq);
                 continue;
             }
-            
+
             java.util.Random r = new java.util.Random();
             if (r.nextInt(10) == 1)
             {
-                System.out.println("Throwing away packet...");
+                report("Throwing away packet...");
                 continue;
             }
-            
+
             buffer.add(c);
-            System.out.println("Received: " + seq);
+            report("Received: " + seq);
             fireACK(seq);
-            
+
             // flush buffer if we can
             while ((index = bufferContainsChunk(buffer, lowerBound)) >= 0)
             {
-                System.out.println("Flushing buffer: " + received);
+                report("Flushing buffer: " + received);
                 handler.receiveData(buffer.remove(index));
                 received++;
                 lowerBound = (int) received % MAX_SEQUENCE;
@@ -123,15 +129,21 @@ public class TransferProtocolClient
         }
         handler.finish();
     }
-    
-    /*private void printBuffer(List<Chunk> buffer)
-    {
-        List<String> print = new ArrayList<String>();
-        for (Chunk c : buffer)
-            print.add(c + "" + c.getSequenceNumber());
-        System.out.println("Buffer: " + print);
-    }*/
-    
+
+    /* private void printBuffer(List<Chunk> buffer)
+       {
+       List<String> print = new ArrayList<String>();
+       for (Chunk c : buffer)
+       print.add(c + "" + c.getSequenceNumber());
+       System.out.println("Buffer: " + print);
+       } */
+
+    /**
+     * Checks whether the buffer contains a chunk with a given sequence number.
+     * @param buffer the buffer to check
+     * @param number the sequence number to find
+     * @return the index of the chunk in the buffer or -1
+     */
     private int bufferContainsChunk(List<Chunk> buffer, int number)
     {
         for (int i = 0; i < buffer.size(); i++)
@@ -142,14 +154,19 @@ public class TransferProtocolClient
         }
         return -1;
     }
-    
+
+    /**
+     * Fires and ACK packet with a given sequence number.
+     * @param number the sequence number
+     * @return whether the send was successful
+     */
     private boolean fireACK(int number)
     {
         ByteBuffer bb = ByteBuffer.allocate(6);
         bb.putInt(number).putShort((short) 3);
-        
-        System.out.println("FireACK: " + number);
-        
+
+        report("FireACK: " + number);
+
         DatagramPacket packet = new DatagramPacket(bb.array(), 6,
             address, port);
         try
@@ -162,11 +179,14 @@ public class TransferProtocolClient
             return false;
         }
     }
+
+    /**
+     * Handles the reporting of a message.
+     * @param message the message to report
+     */
+    private static void report(String message)
+    {
+        // System.out.println(message);
+    }
 }
-
-
-
-
-
-
 

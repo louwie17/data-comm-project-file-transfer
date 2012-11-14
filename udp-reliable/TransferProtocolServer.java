@@ -8,6 +8,9 @@ import java.util.HashMap;
 import java.util.Timer;
 import java.util.TimerTask;
 
+/**
+ * The server side implementation of the reliable transfer protocol.
+ */
 public class TransferProtocolServer
 {
     private static final int WINDOW_SIZE = 50;
@@ -18,11 +21,11 @@ public class TransferProtocolServer
     private int port;
     private long numPackets;
     private IChunkSupplier supplier;
-    
+
     private Map<Chunk,Long> sentNeedACK;
     private long windowBase;
     private long canSend;
-    
+
     /**
      * Creates a new protocol client to handle the transfer of chunkCount
      * number of packets.
@@ -35,8 +38,8 @@ public class TransferProtocolServer
      * null or if chunkCount < 0 or if port < 0 || > 65536
      */
     public TransferProtocolServer(DatagramSocket aSocket,
-                                  InetAddress aAddress, int aPort,
-                                  long chunkCount, IChunkSupplier aSupplier)
+        InetAddress aAddress, int aPort,
+        long chunkCount, IChunkSupplier aSupplier)
     {
         if (aSocket == null)
             throw new IllegalArgumentException("Created with null socket.");
@@ -63,21 +66,27 @@ public class TransferProtocolServer
         fillSent();
         receiveACKS();
     }
-    
+
+    /**
+     * If possible, fills the window by sending more chunks.
+     */
     private void fillSent()
     {
         Chunk next;
         while (!sentNeedACK.containsValue(windowBase) &&
-                windowBase < canSend && sentNeedACK.size() < WINDOW_SIZE &&
-                (next = supplier.nextChunk()) != null)
+            windowBase < canSend && sentNeedACK.size() < WINDOW_SIZE &&
+            (next = supplier.nextChunk()) != null)
         {
             fireData(next, false);
         }
     }
-    
+
+    /**
+     * Listens for and handles ACK packets.
+     */
     private void receiveACKS()
     {
-        System.out.println("Waiting for acks...");
+        report("Waiting for acks...");
         while (sentNeedACK.size() > 0)
         {
             DatagramPacket ack = new DatagramPacket(new byte[6], 6);
@@ -87,13 +96,13 @@ public class TransferProtocolServer
             }
             catch (IOException e)
             {
-                System.out.println("Error receiving ack.");
+                report("Error receiving ack.");
                 System.exit(1);
             }
             ByteBuffer bb = ByteBuffer.allocate(6);
             bb.put(ack.getData());
             int sequence = bb.getInt(0);
-            System.out.println("Received ACK: " + sequence);
+            report("Received ACK: " + sequence);
             Chunk m = null;
             for (Chunk c : sentNeedACK.keySet())
                 if (c.getSequenceNumber() == sequence)
@@ -102,7 +111,7 @@ public class TransferProtocolServer
             {
                 if (sentNeedACK.get(m) == windowBase)
                 {
-                    System.out.println("ACK was lowest.  Incrementing" +
+                    report("ACK was lowest.  Incrementing" +
                         "window.  (base: " + windowBase + " & canSend: " +
                         canSend + ")");
                     sentNeedACK.remove(m);
@@ -114,16 +123,21 @@ public class TransferProtocolServer
                     sentNeedACK.remove(m);
             }
         }
-        System.out.println("Out of ACK waiting loop.");
+        report("Out of ACK waiting loop.");
     }
-    
+
+    /**
+     * Fires a chunk of data.
+     * @param chunk the chunk to fire
+     * @param isResend whether this is a resend or not
+     */
     private boolean fireData(Chunk chunk, boolean isResend)
     {
         DatagramPacket packet = new DatagramPacket(chunk.getPacket(),
             chunk.getPacket().length, address, port);
         if (!isResend)
             sentNeedACK.put(chunk, windowBase + sentNeedACK.size());
-        System.out.println("FireData: " + sentNeedACK.get(chunk) +
+        report("FireData: " + sentNeedACK.get(chunk) +
             " (Seq#: " + chunk.getSequenceNumber() + ")");
         try
         {
@@ -143,12 +157,14 @@ public class TransferProtocolServer
         {
             return false;
         }
-    }   
+    }
+
+    /**
+     * Handles the reporting of a message.
+     * @param message the message to report
+     */
+    private static void report(String message)
+    {
+        // System.out.println(message);
+    }
 }
-
-
-
-
-
-
-
