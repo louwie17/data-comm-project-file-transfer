@@ -1,24 +1,36 @@
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 import java.util.zip.Checksum;
 import java.util.zip.CRC32;
 
+/**
+ * Represents a chunk of data which can be transmitted as a packet.  It has a
+ * sequence number, the payload, and a checksum.
+ *
+ * Packet:
+ *     4 bytes for sequence number
+ *     1011 bytes of data
+ *     8 bytes of checksum
+ *     ----------
+ *     1024 bytes total
+ */
 public class Chunk
 {
-    /* Packet:
-           4 bytes for sequence number
-        1011 bytes of data
-           8 bytes of checksum
-        ----------
-        1024 bytes total
-     */
     public static final int SEQUENCE_NUMBER_BYTES = 4;
     public static final int DATA_BYTES = 1011;
     public static final int CRC_BYTES = 8;
     public static final int TOTAL_BYTES = 1024;
-    
+
     private byte[] data;
 
-    // this one is server side
+    // ** Server Side Functions **
+
+    /**
+     * Creates a new chunk of data filled with bytes and a sequence number.
+     * @param bytes the byte array of data
+     * @param num the sequence number to append
+     * @throws IllegalArgumentException if bytes.length != Chunk.DATA_BYTES
+     */
     public Chunk(byte[] bytes, int num)
     {
         if (bytes.length != DATA_BYTES)
@@ -36,34 +48,47 @@ public class Chunk
         data = buffer.array();
     }
 
-    // this one is client side
-    public Chunk(byte[] bytes)
-    {
-        data = bytes;
-    }
-
-    // for the server side
+    /**
+     * Returns a new byte array for the packet (which contains sequence
+     * number, the payload, and a checksum.
+     * @return a new byte array
+     */
     public byte[] getPacket()
     {
-        return data;
+        return Arrays.copyOf(data, data.length);
     }
 
-    // Check the CRC on the client side
+
+    // ** Client Side **
+    /**
+     * Creates a new chunk from an existing packet so that the payload can be
+     * pulled out.  The checksum can be checked and the sequence number
+     * retrieved also.
+     * @param bytes the byte array of data
+     */
+    public Chunk(byte[] bytes)
+    {
+        data = Arrays.copyOf(bytes, bytes.length);
+    }
+
+    /**
+     * Performs a CRC check to ensure the packet is valid.
+     * @return whether the packet is valid
+     */
     public boolean checkCRC()
     {
         ByteBuffer bb = ByteBuffer.allocate(TOTAL_BYTES);
         bb.put(data);
-        
         Checksum crc = new CRC32();
         crc.update(data, 0, SEQUENCE_NUMBER_BYTES + DATA_BYTES);
-
-//        System.out.println(bb.getLong(SEQUENCE_NUMBER_BYTES + DATA_BYTES));
-//        System.out.println(crc.getValue());
         return crc.getValue() == bb.getLong(SEQUENCE_NUMBER_BYTES +
             DATA_BYTES);
     }
 
-    // client side
+    /**
+     * Returns the sequence number.
+     * @return the sequence number
+     */
     public int getSequenceNumber()
     {
         ByteBuffer bb = ByteBuffer.allocate(TOTAL_BYTES);
@@ -71,22 +96,33 @@ public class Chunk
         return bb.getInt(0);
     }
 
-    // for the client side
+    /**
+     * Returns the data payload.
+     * @return a byte array containing the data payload
+     */
     public byte[] getData()
     {
         ByteBuffer bb = ByteBuffer.allocate(DATA_BYTES);
         bb.put(data, SEQUENCE_NUMBER_BYTES, DATA_BYTES);
         return bb.array();    
     }
-    
-    /*public String toString()
+
+    // ** Debug Functions **
+    /**
+     * Returns a string representation of the chunk.
+     * @return a string representation of the chunk
+     */
+    public String toString()
     {
         return "[Chunk (Seq=" + getSequenceNumber() + ")" + " " +
             dataAsString(getData());
-    }*/
-    
-    // temp public
-    public String dataAsString(byte[] bytes)
+    }
+
+    /**
+     * Returns a string representing the payload as a string of integers.
+     * @return a string representing the payload
+     */
+    private String dataAsString(byte[] bytes)
     {
         String ret = "";
         ByteBuffer bb = ByteBuffer.allocate(bytes.length);
@@ -96,6 +132,3 @@ public class Chunk
         return ret;
     }
 }
-
-
-
