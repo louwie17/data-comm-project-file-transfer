@@ -107,12 +107,12 @@ public class TransferProtocolClient
                 continue;
             }
 
-            java.util.Random r = new java.util.Random();
-            if (r.nextInt(10) == 1)
-            {
-                report("Throwing away packet...");
-                continue;
-            }
+            /*java.util.Random r = new java.util.Random();
+              if (r.nextInt(10) == 1)
+              {
+              report("Throwing away packet...");
+              continue;
+              }*/
 
             buffer.add(c);
             report("Received: " + seq);

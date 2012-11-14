@@ -6,20 +6,13 @@ import java.util.zip.CRC32;
 /**
  * Represents a chunk of data which can be transmitted as a packet.  It has a
  * sequence number, the payload, and a checksum.
- *
- * Packet:
- *     4 bytes for sequence number
- *     1011 bytes of data
- *     8 bytes of checksum
- *     ----------
- *     1024 bytes total
  */
 public class Chunk
 {
     public static final int SEQUENCE_NUMBER_BYTES = 4;
-    public static final int DATA_BYTES = 1011;
+    public static final int DATA_BYTES = 8192;  //1011;
     public static final int CRC_BYTES = 8;
-    public static final int TOTAL_BYTES = 1024;
+    public static final int TOTAL_BYTES = 8204;
 
     private byte[] data;
 

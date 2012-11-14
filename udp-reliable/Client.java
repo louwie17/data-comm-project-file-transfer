@@ -7,7 +7,6 @@ import java.util.*;
  */
 public class Client
 {
-    private static final int BUFFER = 1024;
     private static final int PORT = 4444;
 
     public static void main(String args[])
@@ -46,7 +45,7 @@ public class Client
 
             // ask server if we can get a file
             String cmd = "GET_FILE";
-            byte[] buffer = new byte[BUFFER];
+            byte[] buffer = new byte[Chunk.DATA_BYTES];
             try {
                 inetaddress = InetAddress.getByName(ip);
                 connect = new DatagramPacket(cmd.getBytes(),

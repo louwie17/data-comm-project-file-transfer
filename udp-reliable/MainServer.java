@@ -9,7 +9,6 @@ import java.util.*;
 public class MainServer
 {
     private static final int PORT = 4444;
-    private static final int BUFFER = 1024;
     private static final int MAX_SEQUENCE = 255;
 
     public static void main(String args[])
@@ -19,7 +18,7 @@ public class MainServer
             // prepare socket & packet
             DatagramSocket socket = new DatagramSocket(PORT);
             DatagramPacket packet = new DatagramPacket(
-                new byte[BUFFER], BUFFER);
+                new byte[Chunk.DATA_BYTES], Chunk.DATA_BYTES);
             boolean ok = false;
 
             // listen
