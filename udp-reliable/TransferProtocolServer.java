@@ -89,19 +89,28 @@ public class TransferProtocolServer
         report("Waiting for acks...");
         while (sentNeedACK.size() > 0)
         {
-            DatagramPacket ack = new DatagramPacket(new byte[6], 6);
+            DatagramPacket datagram = new DatagramPacket(
+                new byte[ACK.TOTAL_BYTES], ACK.TOTAL_BYTES);
             try
             {
-                socket.receive(ack);
+                socket.receive(datagram);
             }
             catch (IOException e)
             {
                 report("Error receiving ack.");
                 System.exit(1);
             }
-            ByteBuffer bb = ByteBuffer.allocate(6);
-            bb.put(ack.getData());
-            int sequence = bb.getInt(0);
+            ACK ack = new ACK(datagram.getData());
+
+            // packet is invalid
+            if (!ack.checkCRC() || !ack.checkCode())
+            {
+                report("Invalid ACK received with sequence " +
+                    "number " + ack.getSequenceNumber());
+                continue;
+            }
+
+            int sequence = ack.getSequenceNumber();
             report("Received ACK: " + sequence);
             Chunk m = null;
             for (Chunk c : sentNeedACK.keySet())

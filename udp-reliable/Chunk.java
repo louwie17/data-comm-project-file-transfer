@@ -22,21 +22,20 @@ public class Chunk
      * Creates a new chunk of data filled with bytes and a sequence number.
      * @param bytes the byte array of data
      * @param num the sequence number to append
-     * @throws IllegalArgumentException if bytes.length != Chunk.DATA_BYTES
+     * @throws IllegalArgumentException if
+     * bytes.length != Chunk.getDataByteSize()
      */
     public Chunk(byte[] bytes, int num)
     {
-        if (bytes.length != DATA_BYTES)
-            throw new IllegalArgumentException("Invalid number of data " + 
-                " bytes.  Expected " + DATA_BYTES + ", but received " + 
-                bytes.length);
-        ByteBuffer buffer = ByteBuffer.allocate(TOTAL_BYTES);
+        int size = getSequenceNumberByteSize() + bytes.length +
+            getCRCByteSize();
+        ByteBuffer buffer = ByteBuffer.allocate(size);
         buffer.putInt(num);
         buffer.put(bytes);
 
         byte[] sum = buffer.array();
         Checksum crc = new CRC32();
-        crc.update(sum, 0, SEQUENCE_NUMBER_BYTES + DATA_BYTES);
+        crc.update(sum, 0, getSequenceNumberByteSize() + bytes.length);
         buffer.putLong(crc.getValue());
         data = buffer.array();
     }
@@ -69,13 +68,12 @@ public class Chunk
      * @return whether the packet is valid
      */
     public boolean checkCRC()
-    {
-        ByteBuffer bb = ByteBuffer.allocate(TOTAL_BYTES);
+    {        
+        ByteBuffer bb = ByteBuffer.allocate(data.length);
         bb.put(data);
         Checksum crc = new CRC32();
-        crc.update(data, 0, SEQUENCE_NUMBER_BYTES + DATA_BYTES);
-        return crc.getValue() == bb.getLong(SEQUENCE_NUMBER_BYTES +
-            DATA_BYTES);
+        crc.update(data, 0, data.length - getCRCByteSize());
+        return crc.getValue() == bb.getLong(data.length - getCRCByteSize());
     }
 
     /**
@@ -84,7 +82,7 @@ public class Chunk
      */
     public int getSequenceNumber()
     {
-        ByteBuffer bb = ByteBuffer.allocate(TOTAL_BYTES);
+        ByteBuffer bb = ByteBuffer.allocate(getTotalByteSize());
         bb.put(data);
         return bb.getInt(0);
     }
@@ -95,8 +93,8 @@ public class Chunk
      */
     public byte[] getData()
     {
-        ByteBuffer bb = ByteBuffer.allocate(DATA_BYTES);
-        bb.put(data, SEQUENCE_NUMBER_BYTES, DATA_BYTES);
+        ByteBuffer bb = ByteBuffer.allocate(getDataByteSize());
+        bb.put(data, getSequenceNumberByteSize(), getDataByteSize());
         return bb.array();    
     }
 
@@ -123,5 +121,42 @@ public class Chunk
         for (int i = 0; i < bytes.length; i++)
             ret += bb.get(i);
         return ret;
+    }
+
+    // ** Misc Functions **
+    /**
+     * Returns the number of bytes used for sequence number.
+     * @return the number of bytes used for sequence number
+     */
+    protected int getSequenceNumberByteSize()
+    {
+        return SEQUENCE_NUMBER_BYTES;
+    }
+
+    /**
+     * Returns the number of bytes used for data.
+     * @return the number of bytes used for data
+     */
+    protected int getDataByteSize()
+    {
+        return DATA_BYTES;
+    }
+
+    /**
+     * Returns the number of bytes used for CRC.
+     * @return the number of bytes used for CRC
+     */
+    protected int getCRCByteSize()
+    {
+        return CRC_BYTES;
+    }
+
+    /**
+     * Returns the number of bytes used in total.
+     * @return the number of bytes used in total
+     */
+    protected int getTotalByteSize()
+    {
+        return TOTAL_BYTES;
     }
 }

@@ -162,13 +162,10 @@ public class TransferProtocolClient
      */
     private boolean fireACK(int number)
     {
-        ByteBuffer bb = ByteBuffer.allocate(6);
-        bb.putInt(number).putShort((short) 3);
-
+        ACK ack = new ACK(number);
+        DatagramPacket packet = new DatagramPacket(ack.getPacket(),
+            ack.getPacket().length, address, port);
         report("FireACK: " + number);
-
-        DatagramPacket packet = new DatagramPacket(bb.array(), 6,
-            address, port);
         try
         {
             socket.send(packet);
