@@ -107,13 +107,6 @@ public class TransferProtocolClient
                 continue;
             }
 
-            /*java.util.Random r = new java.util.Random();
-              if (r.nextInt(10) == 1)
-              {
-              report("Throwing away packet...");
-              continue;
-              }*/
-
             buffer.add(c);
             report("Received: " + seq);
             fireACK(seq);
@@ -129,15 +122,7 @@ public class TransferProtocolClient
         }
         handler.finish();
     }
-
-    /* private void printBuffer(List<Chunk> buffer)
-       {
-       List<String> print = new ArrayList<String>();
-       for (Chunk c : buffer)
-       print.add(c + "" + c.getSequenceNumber());
-       System.out.println("Buffer: " + print);
-       } */
-
+    
     /**
      * Checks whether the buffer contains a chunk with a given sequence number.
      * @param buffer the buffer to check
