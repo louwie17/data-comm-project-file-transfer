@@ -23,6 +23,7 @@ public class TransferProtocolServer
     private IChunkSupplier supplier;
 
     private Map<Chunk,Long> sentNeedACK;
+    private Map<Chunk,Timer> timers;
     private long windowBase;
     private long canSend;
 
@@ -63,6 +64,7 @@ public class TransferProtocolServer
         windowBase = 0;
         canSend = WINDOW_SIZE;
         sentNeedACK = new HashMap<Chunk,Long>();
+        timers = new HashMap<Chunk,Timer>();
         fillSent();
         receiveACKS();
     }
@@ -130,11 +132,14 @@ public class TransferProtocolServer
                 }
                 else
                     sentNeedACK.remove(m);
+                Timer t = timers.remove(m);
+                if (t != null)
+                    t.cancel();
             }
         }
         report("Out of ACK waiting loop.");
     }
-
+    
     /**
      * Fires a chunk of data.
      * @param chunk the chunk to fire
@@ -153,6 +158,7 @@ public class TransferProtocolServer
             socket.send(packet);
             final Chunk sentChunk = chunk;
             Timer timer = new Timer();
+            timers.put(chunk, timer);
             timer.schedule(new TimerTask(){
                 public void run()
                 {
