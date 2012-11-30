@@ -40,6 +40,22 @@ public class Client
             if (ip.equals("quit"))   // user wants to quit
                 System.exit(0);
 
+            // ask user for file name
+            System.out.println("File to transfer: ");
+            filename = scan.nextLine();
+            if (filename.equals("quit"))  // user wants to quit
+                break;
+
+            // create local file
+            String[] splitName = filename.split("/");
+            File newFile = new File("local_" + 
+                splitName[splitName.length - 1]);
+            if (newFile.exists())
+            {
+                System.out.println("Error: can't write to disk");
+                continue;
+            }
+
             DatagramPacket connect = null;
             DatagramPacket received = null;
 
@@ -50,7 +66,7 @@ public class Client
                 inetaddress = InetAddress.getByName(ip);
                 connect = new DatagramPacket(cmd.getBytes(),
                     cmd.getBytes().length, inetaddress, PORT);
-                System.out.println("Sending request" +
+                System.out.println("Sending request " +
                     connect.getAddress());
                 socket.send(connect);
             }
@@ -81,14 +97,11 @@ public class Client
             String pack = new String(
                 received.getData(), 0, received.getLength());
             if (!pack.equals("OKGO"))
+            {
+                System.out.println("Did not equal OKGO it was: " + pack );
                 continue;
-
-            // ask user for file name
-            System.out.println("File to transfer: ");
-            filename = scan.nextLine();
-            if (filename.equals("quit"))  // user wants to quit
-                break;
-
+            }
+            System.out.println("Sending file name");
             // ask server for file
             try {
                 DatagramPacket fileName = new DatagramPacket(
@@ -119,15 +132,6 @@ public class Client
             if (pack.startsWith("Error"))
             {
                 System.out.println(pack);
-                continue;
-            }
-            // create local file
-            String[] splitName = filename.split("/");
-            File newFile = new File("local_" + 
-                splitName[splitName.length - 1]);
-            if (newFile.exists())
-            {
-                System.out.println("Error: can't write to disk");
                 continue;
             }
 

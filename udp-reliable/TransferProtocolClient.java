@@ -84,7 +84,7 @@ public class TransferProtocolClient
                     packet.getData().length));
 
             int lowerBound = (int) received % MAX_SEQUENCE;
-            int upperBound = (lowerBound + WINDOW_SIZE) % MAX_SEQUENCE;
+            int upperBound = (lowerBound + WINDOW_SIZE - 1) % MAX_SEQUENCE;
             int seq = c.getSequenceNumber();
 
             report("Lower bound: " + lowerBound + "  Upper: " + upperBound);
@@ -100,12 +100,21 @@ public class TransferProtocolClient
                 fireACK(seq);
                 continue;
             }
-            if (lowerBound < lowerBound && seq < lowerBound &&
-                seq > lowerBound)
+            if (upperBound < lowerBound && seq > upperBound &&
+                seq < lowerBound)
             {
                 fireACK(seq);
                 continue;
             }
+
+
+            // Optionally throw away packets (for testing purposes)
+            /* java.util.Random r = new java.util.Random();
+               if (r.nextInt(3) == 1)
+               {
+               report("Throwing away packet... " + seq);
+               continue;
+               } */
 
             buffer.add(c);
             report("Received: " + seq);
@@ -122,7 +131,7 @@ public class TransferProtocolClient
         }
         handler.finish();
     }
-    
+
     /**
      * Checks whether the buffer contains a chunk with a given sequence number.
      * @param buffer the buffer to check
@@ -168,6 +177,6 @@ public class TransferProtocolClient
      */
     private static void report(String message)
     {
-        // System.out.println(message);
+        System.out.println(message);
     }
 }

@@ -25,7 +25,8 @@ public class TransferProtocolServer
     private Map<Chunk,Long> sentNeedACK;
     private Map<Chunk,Timer> timers;
     private long windowBase;
-    private long canSend;
+    private int sentAndACKed;
+    private long sent = 0;
 
     /**
      * Creates a new protocol client to handle the transfer of chunkCount
@@ -62,7 +63,7 @@ public class TransferProtocolServer
 
         // prepare & start sending
         windowBase = 0;
-        canSend = WINDOW_SIZE;
+        sentAndACKed = 0;
         sentNeedACK = new HashMap<Chunk,Long>();
         timers = new HashMap<Chunk,Timer>();
         fillSent();
@@ -75,8 +76,7 @@ public class TransferProtocolServer
     private void fillSent()
     {
         Chunk next;
-        while (!sentNeedACK.containsValue(windowBase) &&
-            windowBase < canSend && sentNeedACK.size() < WINDOW_SIZE &&
+        while (sentNeedACK.size() < WINDOW_SIZE - sentAndACKed &&
             (next = supplier.nextChunk()) != null)
         {
             fireData(next, false);
@@ -89,7 +89,7 @@ public class TransferProtocolServer
     private void receiveACKS()
     {
         report("Waiting for acks...");
-        while (sentNeedACK.size() > 0)
+        while (windowBase < numPackets) //sentNeedACK.size() > 0)
         {
             DatagramPacket datagram = new DatagramPacket(
                 new byte[ACK.TOTAL_BYTES], ACK.TOTAL_BYTES);
@@ -122,24 +122,62 @@ public class TransferProtocolServer
             {
                 if (sentNeedACK.get(m) == windowBase)
                 {
-                    report("ACK was lowest.  Incrementing" +
-                        "window.  (base: " + windowBase + " & canSend: " +
-                        canSend + ")");
                     sentNeedACK.remove(m);
                     windowBase++;
-                    canSend++;
-                    fillSent();
+                    report("ACK was lowest.  Incrementing" +
+                        "window.  (base: " + windowBase + ")");
+
+                    if (sentNeedACK.size() == 0)
+                    {
+                        windowBase += WINDOW_SIZE - 1;
+                        sentAndACKed = 0;
+                        report("Empty window.  Fire!");
+                        fillSent();
+                    }
+                    else
+                    {
+                        for (int i = 0; i < WINDOW_SIZE - 1; i++)
+                        {
+                            boolean inWindow = false;
+                            for (Chunk c : sentNeedACK.keySet())
+                            {
+                                if (sentNeedACK.get(c) == windowBase)
+                                {
+                                    inWindow = true;
+                                    break;
+                                }
+                            }
+                            if (!inWindow)
+                            {
+                                sentAndACKed--;
+                                if (sentAndACKed < 0)
+                                {
+                                    report("sentAndACKed got negative...");
+                                    System.exit(0);
+                                }
+                                windowBase++;
+                                report("windowBase++ = " + windowBase);
+                            }
+                        }
+                        fillSent();
+                    }
                 }
                 else
+                {
                     sentNeedACK.remove(m);
+                    sentAndACKed++;
+                }
                 Timer t = timers.remove(m);
                 if (t != null)
                     t.cancel();
             }
         }
+        System.out.println("windowBase: " + windowBase + " numPackets: " +
+            numPackets);
+
         report("Out of ACK waiting loop.");
     }
-    
+
     /**
      * Fires a chunk of data.
      * @param chunk the chunk to fire
@@ -147,18 +185,17 @@ public class TransferProtocolServer
      */
     private boolean fireData(Chunk chunk, boolean isResend)
     {
-        DatagramPacket packet = new DatagramPacket(chunk.getPacket(),
-            chunk.getPacket().length, address, port);
         if (!isResend)
-            sentNeedACK.put(chunk, windowBase + sentNeedACK.size());
+            sentNeedACK.put(chunk, sent++);
         report("FireData: " + sentNeedACK.get(chunk) +
             " (Seq#: " + chunk.getSequenceNumber() + ")");
         try
         {
-            socket.send(packet);
             final Chunk sentChunk = chunk;
             Timer timer = new Timer();
             timers.put(chunk, timer);
+            DatagramPacket packet = new DatagramPacket(chunk.getPacket(),
+                chunk.getPacket().length, address, port);
             timer.schedule(new TimerTask(){
                 public void run()
                 {
@@ -166,6 +203,7 @@ public class TransferProtocolServer
                         fireData(sentChunk, true);
                 }
             }, TIMEOUT_MS);
+            socket.send(packet);
             return true;
         }
         catch (IOException e)
@@ -180,6 +218,6 @@ public class TransferProtocolServer
      */
     private static void report(String message)
     {
-        // System.out.println(message);
+        System.out.println(message);
     }
 }
