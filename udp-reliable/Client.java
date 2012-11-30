@@ -117,8 +117,10 @@ public class Client
             // check if there was an error
             pack = new String(received.getData(), 0, received.getLength());
             if (pack.startsWith("Error"))
+            {
+                System.out.println(pack);
                 continue;
-
+            }
             // create local file
             String[] splitName = filename.split("/");
             File newFile = new File("local_" + 
