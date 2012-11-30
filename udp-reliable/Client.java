@@ -206,6 +206,7 @@ public class Client
             {
                 try
                 {
+                    System.out.println("File Transfer finished!");
                     fos.close();
                 }
                 catch (IOException e)

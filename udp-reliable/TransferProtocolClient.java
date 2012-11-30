@@ -177,6 +177,6 @@ public class TransferProtocolClient
      */
     private static void report(String message)
     {
-        System.out.println(message);
+        //System.out.println(message);
     }
 }
